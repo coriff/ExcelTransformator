@@ -4,13 +4,13 @@ Transformateur Excel
 Lance avec : python3 transformateur_excel.py
 
 Traite tous les fichiers .xlsx/.xlsm du dossier :
+  - Remplace les formules par leurs valeurs calculées (évite les références circulaires)
   - Supprime les lignes N/A (col F pour 2025/2026, col I ou J pour 2024)
   - Retire les macros
   - Sauvegarde en _officiel.xlsx dans le même dossier
 """
 
 import openpyxl
-import os
 from pathlib import Path
 
 DOSSIER = Path(__file__).parent
@@ -34,22 +34,35 @@ def derniere_ligne_reelle(ws):
 
 
 def traiter(chemin):
-    nom    = chemin.name
-    annee  = detecter_annee(nom)
+    nom   = chemin.name
+    annee = detecter_annee(nom)
     if annee is None:
-        print(f"  ⚠  {nom} ignoré (année 2024/2025/2026 introuvable dans le nom)")
+        print(f"  ⚠  {nom} ignoré (2024/2025/2026 introuvable dans le nom)")
         return
 
-    wb = openpyxl.load_workbook(chemin, keep_vba=False)
+    # Chargement en double :
+    #   data_only=True  → valeurs calculées (pas de formules)
+    #   keep_vba=False  → mise en forme + structure, sans macros
+    wb_vals = openpyxl.load_workbook(chemin, data_only=True)
+    wb      = openpyxl.load_workbook(chemin, keep_vba=False)
 
     nom_feuille = FEUILLE_PRINCIPALE[annee]
     if nom_feuille not in wb.sheetnames:
         nom_feuille = wb.sheetnames[0]
-    ws = wb[nom_feuille]
+
+    ws      = wb[nom_feuille]
+    ws_vals = wb_vals[nom_feuille]
+
+    # Remplacer toutes les formules par leurs valeurs calculées
+    # (évite les références circulaires après suppression de lignes)
+    for row in ws.iter_rows():
+        for cell in row:
+            if isinstance(cell.value, str) and cell.value.startswith("="):
+                cell.value = ws_vals.cell(cell.row, cell.column).value
 
     fin = derniere_ligne_reelle(ws)
 
-    # Lignes à supprimer
+    # Repérer les lignes N/A
     a_supprimer = []
     for r in range(2, fin + 1):
         for col in COLONNES_NA[annee]:
@@ -57,16 +70,16 @@ def traiter(chemin):
                 a_supprimer.append(r)
                 break
 
-    # Suppression en ordre inverse
+    # Supprimer en ordre inverse pour ne pas décaler les indices
     for r in reversed(a_supprimer):
         ws.delete_rows(r)
 
-    # Supprimer les lignes vides excédentaires
+    # Supprimer les lignes vides excédentaires (ex : 2026 avait ~17 000 lignes vides)
     nouvelle_fin = derniere_ligne_reelle(ws)
     if ws.max_row > nouvelle_fin + 5:
         ws.delete_rows(nouvelle_fin + 1, ws.max_row - nouvelle_fin)
 
-    # Renuméroter colonne A
+    # Renuméroter la colonne A (#)
     num = 1
     for r in range(2, ws.max_row + 1):
         if ws.cell(r, 1).value is not None:
