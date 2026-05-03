@@ -1,0 +1,12 @@
+# Fichiers Excel (données personnelles)
+*.xlsx
+*.xlsm
+*.xls
+~$*
+
+# macOS
+.DS_Store
+
+# Python
+__pycache__/
+*.pyc
