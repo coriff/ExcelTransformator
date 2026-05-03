@@ -27,10 +27,16 @@ def detecter_annee(nom):
 
 
 def derniere_ligne_reelle(ws):
-    for r in range(ws.max_row, 1, -1):
-        if any(ws.cell(r, c).value is not None for c in range(1, ws.max_column + 1)):
-            return r
-    return 1
+    """
+    Cherche la dernière ligne avec données via ws._cells (dict interne),
+    sans créer de Cell objects pour les lignes vides — crucial pour les
+    fichiers comme 2026 qui déclarent 17 000+ lignes dans leur XML.
+    """
+    max_r = 1
+    for (row, col), cell in ws._cells.items():
+        if cell.value is not None and row > max_r:
+            max_r = row
+    return max_r
 
 
 def traiter(chemin):
@@ -41,7 +47,7 @@ def traiter(chemin):
         return
 
     # Chargement en double :
-    #   data_only=True  → valeurs calculées (pas de formules)
+    #   data_only=True  → valeurs calculées (sans formules)
     #   keep_vba=False  → mise en forme + structure, sans macros
     wb_vals = openpyxl.load_workbook(chemin, data_only=True)
     wb      = openpyxl.load_workbook(chemin, keep_vba=False)
@@ -53,16 +59,25 @@ def traiter(chemin):
     ws      = wb[nom_feuille]
     ws_vals = wb_vals[nom_feuille]
 
-    # Remplacer toutes les formules par leurs valeurs calculées
-    # (évite les références circulaires après suppression de lignes)
-    for row in ws.iter_rows():
+    # ── Étape 1 : vraie dernière ligne (via _cells, sans toucher aux vides) ──
+    fin = derniere_ligne_reelle(ws)
+
+    # ── Étape 2 : supprimer les lignes vides AVANT tout le reste ────────────
+    # Critique pour le 2026 : réduit max_row de 17 552 à ~1 026.
+    # Chaque delete_rows suivant ne reconstruit alors que ~1 026 lignes
+    # au lieu de 17 552 → 17× plus rapide.
+    if ws.max_row > fin + 5:
+        ws.delete_rows(fin + 1, ws.max_row - fin)
+
+    # ── Étape 3 : remplacer les formules par leurs valeurs ──────────────────
+    # Limité aux vraies données (max_row=fin) pour ne pas créer
+    # des Cell objects inutiles pour les lignes vides.
+    for row in ws.iter_rows(max_row=fin):
         for cell in row:
             if isinstance(cell.value, str) and cell.value.startswith("="):
                 cell.value = ws_vals.cell(cell.row, cell.column).value
 
-    fin = derniere_ligne_reelle(ws)
-
-    # Repérer les lignes N/A
+    # ── Étape 4 : repérer les lignes N/A ────────────────────────────────────
     a_supprimer = []
     for r in range(2, fin + 1):
         for col in COLONNES_NA[annee]:
@@ -70,21 +85,18 @@ def traiter(chemin):
                 a_supprimer.append(r)
                 break
 
-    # Supprimer en ordre inverse pour ne pas décaler les indices
+    # ── Étape 5 : supprimer les N/A (max_row ≈ 1 026 maintenant → rapide) ──
     for r in reversed(a_supprimer):
         ws.delete_rows(r)
 
-    # Supprimer les lignes vides excédentaires (ex : 2026 avait ~17 000 lignes vides)
-    nouvelle_fin = derniere_ligne_reelle(ws)
-    if ws.max_row > nouvelle_fin + 5:
-        ws.delete_rows(nouvelle_fin + 1, ws.max_row - nouvelle_fin)
-
-    # Renuméroter la colonne A (#)
-    num = 1
-    for r in range(2, ws.max_row + 1):
-        if ws.cell(r, 1).value is not None:
-            ws.cell(r, 1).value = num
-            num += 1
+    # ── Étape 6 : renuméroter la colonne A (#) ──────────────────────────────
+    # Via _cells pour ne pas créer d'objets sur les lignes déjà supprimées.
+    col_a = sorted(
+        (row, cell) for (row, col), cell in ws._cells.items()
+        if col == 1 and row > 1 and cell.value is not None
+    )
+    for num, (_, cell) in enumerate(col_a, start=1):
+        cell.value = num
 
     sortie = DOSSIER / (chemin.stem.replace(".xlsm", "") + "_officiel.xlsx")
     wb.save(sortie)
