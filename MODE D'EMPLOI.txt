@@ -1,0 +1,72 @@
+═══════════════════════════════════════════════════
+         TRANSFORMATEUR EXCEL — MODE D'EMPLOI
+═══════════════════════════════════════════════════
+
+Ce programme prend les fichiers Excel du dossier,
+supprime toutes les lignes sans numéro de facture
+(N/A), retire les macros, et crée un fichier propre
+avec le suffixe _officiel.xlsx.
+
+
+───────────────────────────────────────────────────
+  ÉTAPE 1 — Préparer le dossier
+───────────────────────────────────────────────────
+
+  Placer dans ce dossier UNIQUEMENT les fichiers
+  Excel que vous souhaitez transformer.
+
+  ⚠️  Ne pas mettre d'autres fichiers Excel
+  dans ce dossier, ils seraient traités aussi.
+
+
+───────────────────────────────────────────────────
+  ÉTAPE 2 — Lancer le programme
+───────────────────────────────────────────────────
+
+  Double-cliquer sur le fichier :
+
+        👉  Lancer.command
+
+  Une fenêtre noire (Terminal) s'ouvre.
+  Le programme traite les fichiers automatiquement.
+
+
+───────────────────────────────────────────────────
+  ÉTAPE 3 — Attendre la fin
+───────────────────────────────────────────────────
+
+  Patienter jusqu'à voir le message :
+
+        Terminé.
+
+  Puis appuyer sur la touche Entrée pour fermer
+  la fenêtre noire.
+
+
+───────────────────────────────────────────────────
+  ÉTAPE 4 — Récupérer les fichiers
+───────────────────────────────────────────────────
+
+  Les fichiers transformés apparaissent dans
+  ce même dossier avec le suffixe :
+
+        _officiel.xlsx
+
+  Exemple :
+    2026_Livre de recettes Vanina_officiel.xlsx
+
+
+───────────────────────────────────────────────────
+  PREMIÈRE UTILISATION SEULEMENT
+───────────────────────────────────────────────────
+
+  Si macOS bloque l'ouverture de Lancer.command :
+
+  1. Faire un CLIC DROIT sur Lancer.command
+  2. Cliquer sur "Ouvrir"
+  3. Cliquer à nouveau sur "Ouvrir"
+
+  Cette manipulation n'est à faire qu'une seule fois.
+
+
+═══════════════════════════════════════════════════
